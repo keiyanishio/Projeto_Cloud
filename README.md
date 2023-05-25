@@ -1,15 +1,15 @@
 # Projeto_Cloud
 
 ## 1. Introdução
-Esse projeto tem como objetivo criar dois RDSs (em zonas diferentes) e um Load Balancer com dois EC2 e no final conecta-los, usando os Web Server (EC2) para enviar os dados nos RDSs. Tudo feito em Terradorm.
+Este projeto tem como objetivo a criação de dois Relational Database Service (RDS) em zonas distintas, juntamente com um Load Balancer contendo dois EC2. Ao final, ocorrerá a interconexão desses componentes, utilizando os Web Servers (EC2) para enviar os dados aos RDSs. Todo o processo será implementado utilizando a ferramenta Terradorm.
 
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;![Diagrama](imagens/diagrama.png)
 
 Mas antes, precisamos entender o que são esses serviços mencionados anteriormente: 
 
-- **Load Balancer** : esse serviço tem como objetivo direcionar as solicitações entre os servidores conectados a ele, assim evitando a sobrecarga dos outro serviços.
-- **EC2** : junto com a criação do Load Balancer, dois EC2 são implementandos juntos. Aqui no projeto seriam os servidores (Web Servers).
-- **RDS** : são os bancos de dados, no projeto tem o objetivo de armazenar os dados enviados pelos EC2.
+- **Load Balancer** : Tem como objetivo direcionar as solicitações entre os servidores conectados a ele, evitando a sobrecarga em outros serviços. Distribuindo o tráfego de entrada de maneira equilibrada entre os servidores disponíveis, 
+- **EC2** : Em conjunto com a implantação do Load Balancer, são provisionados dois EC2 simultaneamente. Esses EC2 desempenham a função de servidores (Web Servers) no contexto deste projeto.
+- **RDS** : são os bancos de dados são implementados com o objetivo de armazenar os dados enviados pelos servidores (EC2). Eles servem como repositórios para as informações processadas pelos EC2, proporcionando armazenamento e persistência aos dados gerados pelo sistema.
 
 ## 2. Primeiros passos
 - Baixar o [Terraform](https://youtu.be/Cn6xYf0QJME)
@@ -39,7 +39,10 @@ cat id_rsa.pub
 
 ## 3. Criando os primeiros arquivos
 Antes de implementar os serviços, precisamos criar alguns arquivos para configurar o projeto:
+
 - **variables.tf**
+
+Aqui são definidas as variáveis que precisamos preencher ao rodar o código.
 ```terraform
 variable "access_key" {}
 
@@ -49,18 +52,16 @@ variable "region" {
     default = "us-east-1"
 }
 
-variable "key_pair" {}
+variable "ssh_key_pair" {}
 
 variable "user" {}
 
 variable "password" {}
 ```
-Na hora de dar o **terraform.apply**, você precisará preencher o *access_key*, *secret_key*, *key_pairs* (SSH key_pair) e *user* que foram criados no começo, porém você precisa escolher uma senha para os RDSs. E nesse projeto vamos criar os serviços  na região us-east-1 (Norte Virgínia), mencionado em "region".
-
-![var](imagens/var.png)
 
 - **provider.tf**
 
+Uma vez que os valores tenham sido preenchidos previamente, essas variáveis serão utilizadas para configurar um provedor AWS no Terraform. O provedor será criado na região especificada e utilizará as chaves de acesso e permissões  para autenticar e autorizar as operações realizadas na infraestrutura da AWS. 
 ```terraform
 provider "aws" {
     region = "${var.region}"
@@ -68,20 +69,22 @@ provider "aws" {
     secret_key = "${var.secret_key}"
 }
 ```
-Preenchidos anteriormente, os valores colocados serão encaixados nessas variáveis, com intuito de criar um provedor AWS na região definida com as permissões
-das chaves.
 
 - **key_pairs.tf**
+
+No parâmetro **key_pairs**, um par de chaves é criado para autenticar e acessar as instâncias EC2 na AWS. O valor do parâmetro **key_pairs** corresponde à chave pública (public_key) do SSH key_pair criado anteriormente e selecionado durante a execução. Essa chave pública será associada às instâncias EC2 criadas pelo Terraform, permitindo o acesso seguro por meio do protocolo SSH. A chave privada correspondente ao SSH key_pair é mantida localmente e utilizada para autenticação ao se conectar às instâncias EC2.
 ```terraform
 resource "aws_key_pair" "deployer" {
   key_name   = "deployer-key"
-  public_key = "${var.key_pair}"
+  public_key = "${var.ssh_key_pair}"
 }
 ```
-No **key_pairs** é criado um par de chaves para autenticar e acessar as instâncias EC2 na AWS. O public-key é o SSH key_pair que foi criado no início e selecionado na hora de rodar.
+
 
 ## 4. Configurações dos serviços
 - **az.tf**
+
+Neste arquivo, são criadas duas subnets padrão em duas zonas de disponibilidade distintas. No contexto específico do projeto, as zonas selecionadas são us-east-1a e us-east-1b.
 ```terraform
 data "aws_availability_zones" "available_zones" {}
 
@@ -93,9 +96,11 @@ resource "aws_default_subnet" "az2" {
   availability_zone = data.aws_availability_zones.available_zones.names[1] 
 }
 ```
-Nesse arquivo é criado duas subnets padrão em duas zonas diferentes. No caso do projeto são us-east-1a e us-east-1b. Assim podemos, escolher entre as duas onde cada serviço deve ficar.
+
 
 - **subnetgroup.tf**
+
+Aqui são criados os grupos subnets para os RDSs. 
 ```terraform
 resource "aws_db_subnet_group" "db_subnet_group_1" {
   name         = "db_subnets_1"
@@ -117,11 +122,14 @@ resource "aws_db_subnet_group" "db_subnet_group_2" {
   }
 }
 ```
-Aqui são criados os grupos subnets para os RDSs. 
+
 
 ***obs*** : subnet_ids precisa receber dois elementos.
 
 - **securitygroup.tf**
+
+No início do código, é criado um VPC padrão que será utilizado como base para os grupos de segurança. Em seguida, é criado um grupo de segurança específico (***web_server***) para os servidores web, que permite o tráfego nas portas 80 (TCP) e 22 (SSH). Logo após, é criado o grupo de segurança para os bancos de dados RDSs (***db_security_group***), que permite o tráfego na porta 3306 (TCP) vindo do grupo de segurança dos servidores web.
+
 ```terraform
 resource "aws_default_vpc" "default_vpc" {
   tags = {
@@ -179,10 +187,11 @@ resource "aws_security_group" "db_security_group" {
   }
 }
 ```
-No começo do código é criado um vpc padrão para ser utilizado nos grupos de segurança. Depois é criado um grupo de segurança para o web server que permite o tráfego entre a porta 80 (tcp) e 22 (ssh). Logo em seguida é criado o grupo de segurança dos RDSs que permite o tráfego da porta 3306 (tcp) vindo do grupo de seguranca dos web servers.
 
 ## 5. Criando os serviços 
 - **rds1.tf**
+
+Aqui é criado um dos RDSs. No availability_zone é definido em qual zona o RDS vai subir.
 ``` terraform
 resource "aws_db_instance" "db_instance_1" {
   engine                  = "mysql"
@@ -200,9 +209,11 @@ resource "aws_db_instance" "db_instance_1" {
   skip_final_snapshot     = true
 }
 ```
-Aqui é criado um dos RDSs. No availability_zone é definido em qual zona ficar.
+
 
 - **rds2.tf**
+
+Igual o primeiro, porém é um outro RDS em uma zona diferente.
 ``` terraform
 resource "aws_db_instance" "db_instance_2" {
   engine                  = "mysql"
@@ -220,9 +231,13 @@ resource "aws_db_instance" "db_instance_2" {
   skip_final_snapshot     = true
 }
 ```
-Mesmo do primeiro, porém é um outro RDS em uma zona diferente.
+
 
 - **instance.tf**
+
+Este arquivo é responsável por criar as instâncias Web Servers. Cada instância é alocada em uma subnet distinta, o que implica que elas serão implantadas em zonas de disponibilidade diferentes. Além disso, o par de chaves SSH (ssh_key_pairs) definido anteriormente será utilizado aqui. Vale ressaltar que o parâmetro ***vpc_security_group_id*** refere-se ao ID do grupo de segurança associado aos Web Servers.
+
+Dentro das instâncias dos servidores web, são executados scripts em bash que definem as configurações desejadas. Esses scripts têm o objetivo de instalar os serviços do Apache HTTP Server (httpd) e do MySQL, bem como exibir mensagens específicas em cada instância. Na primeira instância, uma mensagem "HELLO WORLD 1" é apresentada, enquanto na segunda instância, a mensagem exibida é "HELLO WORLD 2".
 ``` terraform
 resource "aws_instance" "web_server_1" {
   ami = "ami-01cc34ab2709337aa"
@@ -272,11 +287,16 @@ resource "aws_instance" "web_server_2" {
   }
 }
 ```
-Esse arquivo cria as intâncias dos web servers. Cada instância está em uma subnet diferente, assim são implementados em zonas diferentes. Além disso, o key_pairs definida no início será utilizado aqui. Vale destacar que o vpc_security_group_id é o id do grupo de segurança dos web servers. 
-
-Dentro dessas instâncias é criado em bash o que queremos que seja feita nos web servers. A instância instala o httpd e mysql e apresenta "HELLO WORLD 1" (na primeira instância) e "HELLO WORLD 2" (na segunda instância).
 
 - **alb.tf**
+
+O arquivo inicia com a criação do recurso "aws_lb_target_group" para o Load Balancer, onde é especificado que o tráfego será direcionado para a porta 80. Em seguida, é criado o Load Balancer do tipo "application", projetado para distribuir o tráfego de forma equilibrada entre os Web Servers. 
+
+É importante destacar que o grupo de segurança e as subnets atribuídas ao Load Balancer são as mesmas utilizadas pelos servidores web. Isso garante a consistência das configurações de segurança e conectividade entre os diferentes componentes do sistema. 
+
+Em seguida, é criado o recurso "aws_lb_listener" para definir como as solicitações recebidas serão encaminhadas pelo Load Balancer. Nesse caso, as solicitações também são configuradas para a porta 80. 
+
+Por fim, são criados dois recursos "aws_lb_target_group_attachment" para cada um dos Web Server, a fim de associar as instâncias EC2 aos respectivos target groups e ao Load Balancer. Essa configuração permite que direcione as solicitações de forma adequada, distribuindo-as entre os Web Server conectados ao target group.
 ``` terraform
 resource "aws_lb_target_group" "target_group_1" {
     health_check {
@@ -332,10 +352,11 @@ resource "aws_lb_target_group_attachment" "attch_2" {
   
 }
 ```
-O arquivo começa com a criação do "aws_lb_target_group" do Load Balancer, onde é definido a entrega do tráfego na porta 80. Em seguida é criado o Load Balancer do tipo "application" (que tem como intuito específico de distribuir o tráfego entre os web servers). Vale destacar que o grupo de segurança e as subnet do Load Balancer são as mesma dos Web Servers. Logo abaixo é criado um "aws_lb_listener" para definir como as solicitações serão encaminhadas, também na porta 80. Por fim, são criados dois "aws_lb_target_group_attachment", com seus respectivos Web Server, para anexar as instâncias e o "aws_lb_target_group".
 
 ## 6. Resultados
 - **output.tf**
+
+O arquivo mostrará, após realizar o **terraform apply** e criar os serviços, o terminal apresentará o DNS do Load Balancer, as IPs Públicas dos Web Servers e os endpoints dos RDSs.
 ``` terraform
 output "dns-name" {
   value = aws_lb.load_balancer1.dns_name
@@ -358,7 +379,6 @@ output "endpoint_rds_2" {
 }
 ```
 
-O arquivo mostrará, após realizar o **terraform apply** e criar os serviços, no terminal apresentará o DNS do Load Balancer, as IPs Públicas dos Web Servers e os endpoints dos RDSs.
 
 Agora vamos rodar o código:
 
@@ -371,6 +391,12 @@ E logo em seguida vamos dar o **terraform apply**
 ```
 terraform apply
 ```
+Após o **terraform.apply**, você precisará preencher o *access_key*, *secret_key*, *key_pairs* (SSH key_pair) e *user* que foram criados no começo, porém você precisará escolher uma senha para os RDSs. E nesse projeto vamos criar os serviços na região us-east-1 (Norte Virgínia), mencionado em "region".
+
+
+![var](imagens/var.png)
+
+Após a criação dos serviços, podemos pegar os outputs.
 
 Ao colocar o DNS do Load Balancer, provavelmente um dos Web Servers aparecerá:
 
@@ -378,7 +404,7 @@ Ao colocar o DNS do Load Balancer, provavelmente um dos Web Servers aparecerá:
 
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;![web2](imagens/web_2.png)
 
-Por ser um serviço Load Balancer, onde tráfego distribuído, um dos Web Servers aparecerá. Portanto para apresentar o outro precisrá recarregar a página algumas vezes. 
+Por ser um serviço Load Balancer, onde o tráfego distribuído, um dos Web Servers aparecerá. Portanto para apresentar o outro precisrá recarregar a página algumas vezes. 
 
 Agora vamos entra em um dos RDSs:
 
@@ -405,3 +431,11 @@ SHOW DATABASES;
 ![rds](imagens/rds.png)
 
 Se apareceu o **mydb** deu certo.
+
+E se você quiser acessar o outro RDS é só mudar o ip no ssh e depois usar o comando mysql com o endpoint do RDS 2.
+
+### Referências:
+
+https://youtu.be/_MJfk7Vdt3I
+
+https://youtu.be/qszyXnlCjpE
