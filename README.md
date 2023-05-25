@@ -57,7 +57,7 @@ variable "password" {}
 ```
 Na hora de dar o **terraform.apply**, você precisará preencher o *access_key*, *secret_key*, *key_pairs* (SSH key_pair) e *user* que foram criados no começo, porém você precisa escolher uma senha para os RDSs. E nesse projeto vamos criar os serviços  na região us-east-1 (Norte Virgínia), mencionado em "region".
 
-**iamgem**
+![var](imagens/var.png)
 
 - **provider.tf**
 
