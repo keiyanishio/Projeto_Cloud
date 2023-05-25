@@ -358,7 +358,7 @@ resource "aws_lb_target_group_attachment" "attch_2" {
 ## 6. Resultados
 - **output.tf**
 
-O arquivo mostrará, após realizar o **terraform apply** e criar os serviços, o terminal apresentará o DNS do Load Balancer, as IPs Públicas dos Web Servers e os endpoints dos RDSs.
+O arquivo mostrará, após realizar o ***terraform apply*** e criar os serviços, o terminal apresentará o DNS do Load Balancer, as IPs Públicas dos Web Servers e os endpoints dos RDSs.
 ``` terraform
 output "dns-name" {
   value = aws_lb.load_balancer1.dns_name
@@ -384,16 +384,16 @@ output "endpoint_rds_2" {
 
 Agora vamos rodar o código:
 
-Primeiro vamos fazer **terraform init**:
+Primeiro vamos fazer ***terraform init***:
 ```
 terraform init
 ```
 
-E logo em seguida vamos dar o **terraform apply**
+E logo em seguida vamos dar o ***terraform apply***
 ```
 terraform apply
 ```
-Após o **terraform.apply**, você precisará preencher o *access_key*, *secret_key*, *key_pairs* (SSH key_pair) e *user* que foram criados no começo, porém você precisará escolher uma senha para os RDSs. 
+Após o ***terraform.apply***, você precisará preencher o *access_key*, *secret_key*, *key_pairs* (SSH key_pair) e *user* que foram criados no começo, porém você precisará escolher uma senha para os RDSs. 
 
 
 ![var](imagens/var.png)
@@ -432,7 +432,7 @@ SHOW DATABASES;
 
 ![rds](imagens/rds.png)
 
-Se apareceu o **mydb** deu certo.
+Se apareceu o *mydb* deu certo.
 
 E se você quiser acessar o outro RDS é só mudar o ip no ssh e depois usar o comando mysql com o endpoint do RDS 2.
 
