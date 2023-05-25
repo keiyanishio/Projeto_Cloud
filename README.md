@@ -357,7 +357,20 @@ output "endpoint_rds_2" {
   value = split(":", aws_db_instance.db_instance_2.endpoint)[0]
 }
 ```
-Após realizar o **terraform apply** e criar os serviços, no terminal apresentará o DNS do Load Balancer, as IPs Públicas dos Web Servers e os endpoints dos RDSs.
+
+O arquivo mostrará, após realizar o **terraform apply** e criar os serviços, no terminal apresentará o DNS do Load Balancer, as IPs Públicas dos Web Servers e os endpoints dos RDSs.
+
+Agora vamos rodar o código:
+
+Primeiro vamos fazer **terraform init**:
+```
+terraform init
+```
+
+E logo em seguida vamos dar o **terraform apply**
+```
+terraform apply
+```
 
 Ao colocar o DNS do Load Balancer, provavelmente um dos Web Servers aparecerá:
 
