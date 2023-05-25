@@ -9,7 +9,7 @@ Mas antes, precisamos entender o que são esses serviços mencionados anteriorme
 
 - **Load Balancer** : Tem como objetivo direcionar as solicitações entre os servidores conectados a ele, evitando a sobrecarga em outros serviços. Distribuindo o tráfego de entrada de maneira equilibrada entre os servidores disponíveis, 
 - **EC2** : Em conjunto com a implantação do Load Balancer, são provisionados dois EC2 simultaneamente. Esses EC2 desempenham a função de servidores (Web Servers) no contexto deste projeto.
-- **RDS** : são os bancos de dados são implementados com o objetivo de armazenar os dados enviados pelos servidores (EC2). Eles servem como repositórios para as informações processadas pelos EC2, proporcionando armazenamento e persistência aos dados gerados pelo sistema.
+- **RDS** : Representam os bancos de dados que são implementados com o objetivo de armazenar os dados enviados pelos servidores (EC2). Eles servem como repositórios para as informações processadas pelos EC2, proporcionando armazenamento e persistência aos dados gerados pelo sistema.
 
 ## 2. Primeiros passos
 - Baixar o [Terraform](https://youtu.be/Cn6xYf0QJME)
@@ -42,7 +42,7 @@ Antes de implementar os serviços, precisamos criar alguns arquivos para configu
 
 - **variables.tf**
 
-Aqui são definidas as variáveis que precisamos preencher ao rodar o código.
+Aqui são definidas as variáveis que precisamos preencher ao rodar o código, porém o "region" já está definido. Ou seja, os serviços estarão na região de Norte Virgínia (us-east-1).
 ```terraform
 variable "access_key" {}
 
@@ -72,7 +72,7 @@ provider "aws" {
 
 - **key_pairs.tf**
 
-No parâmetro **key_pairs**, um par de chaves é criado para autenticar e acessar as instâncias EC2 na AWS. O valor do parâmetro **key_pairs** corresponde à chave pública (public_key) do SSH key_pair criado anteriormente e selecionado durante a execução. Essa chave pública será associada às instâncias EC2 criadas pelo Terraform, permitindo o acesso seguro por meio do protocolo SSH. A chave privada correspondente ao SSH key_pair é mantida localmente e utilizada para autenticação ao se conectar às instâncias EC2.
+No parâmetro ***key_pairs***, um par de chaves é criado para autenticar e acessar as instâncias EC2 na AWS. O valor do parâmetro ***key_pairs*** corresponde à chave pública (public_key) do SSH key_pair criado anteriormente e selecionado durante a execução. Essa chave pública será associada às instâncias EC2 criadas pelo Terraform, permitindo o acesso seguro por meio do protocolo SSH. A chave privada correspondente ao SSH key_pair é mantida localmente e utilizada para autenticação ao se conectar às instâncias EC2.
 ```terraform
 resource "aws_key_pair" "deployer" {
   key_name   = "deployer-key"
@@ -191,7 +191,7 @@ resource "aws_security_group" "db_security_group" {
 ## 5. Criando os serviços 
 - **rds1.tf**
 
-Aqui é criado um dos RDSs. No availability_zone é definido em qual zona o RDS vai subir.
+Aqui é criado um dos RDSs. No availability_zone é definido em qual zona (us-east-1a) o RDS vai subir.
 ``` terraform
 resource "aws_db_instance" "db_instance_1" {
   engine                  = "mysql"
@@ -213,7 +213,7 @@ resource "aws_db_instance" "db_instance_1" {
 
 - **rds2.tf**
 
-Igual o primeiro, porém é um outro RDS em uma zona diferente.
+Igual o primeiro, porém é um outro RDS em uma zona diferente (us-east-1b).
 ``` terraform
 resource "aws_db_instance" "db_instance_2" {
   engine                  = "mysql"
@@ -235,9 +235,11 @@ resource "aws_db_instance" "db_instance_2" {
 
 - **instance.tf**
 
-Este arquivo é responsável por criar as instâncias Web Servers. Cada instância é alocada em uma subnet distinta, o que implica que elas serão implantadas em zonas de disponibilidade diferentes. Além disso, o par de chaves SSH (ssh_key_pairs) definido anteriormente será utilizado aqui. Vale ressaltar que o parâmetro ***vpc_security_group_id*** refere-se ao ID do grupo de segurança associado aos Web Servers.
+Este arquivo é responsável por criar as instâncias Web Servers (***web_server_1*** e ***web_server_2***). Cada instância é alocada em uma subnet distinta, o que implica que elas serão implantadas em zonas de disponibilidade diferentes . Além disso, o par de chaves SSH (ssh_key_pairs) definido anteriormente será utilizado aqui. Vale ressaltar que o parâmetro ***vpc_security_group_id*** refere-se ao ID do grupo de segurança associado aos Web Servers.
 
 Dentro das instâncias dos servidores web, são executados scripts em bash que definem as configurações desejadas. Esses scripts têm o objetivo de instalar os serviços do Apache HTTP Server (httpd) e do MySQL, bem como exibir mensagens específicas em cada instância. Na primeira instância, uma mensagem "HELLO WORLD 1" é apresentada, enquanto na segunda instância, a mensagem exibida é "HELLO WORLD 2".
+
+Assim, o ***web_server_1*** estará em us-east-1a e o ***web_server_2*** estará em us-east-1b.
 ``` terraform
 resource "aws_instance" "web_server_1" {
   ami = "ami-01cc34ab2709337aa"
@@ -391,7 +393,7 @@ E logo em seguida vamos dar o **terraform apply**
 ```
 terraform apply
 ```
-Após o **terraform.apply**, você precisará preencher o *access_key*, *secret_key*, *key_pairs* (SSH key_pair) e *user* que foram criados no começo, porém você precisará escolher uma senha para os RDSs. E nesse projeto vamos criar os serviços na região us-east-1 (Norte Virgínia), mencionado em "region".
+Após o **terraform.apply**, você precisará preencher o *access_key*, *secret_key*, *key_pairs* (SSH key_pair) e *user* que foram criados no começo, porém você precisará escolher uma senha para os RDSs. 
 
 
 ![var](imagens/var.png)
