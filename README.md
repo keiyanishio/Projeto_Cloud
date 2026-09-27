@@ -1,85 +1,75 @@
 # AWS Infrastructure with Terraform
 
-Infrastructure-as-Code portfolio project that provisions a small web architecture on AWS using Terraform.
+Academic Infrastructure-as-Code project developed in **2023** during my Computer Engineering degree at Insper.
 
-It deploys two EC2 web servers in separate Availability Zones behind an Application Load Balancer, plus two private MySQL RDS instances accessible only from the web-server security group.
+The project was created to practice provisioning AWS infrastructure with Terraform. The original implementation deployed two EC2 web servers in separate Availability Zones behind an Application Load Balancer, together with two MySQL RDS instances.
 
 ![Architecture diagram](imagens/diagrama.png)
 
 ## Architecture
 
-- **Application Load Balancer** distributes HTTP traffic across two EC2 instances.
-- **EC2** instances run Apache in separate Availability Zones.
-- **Amazon RDS for MySQL** provides two independent database instances in separate Availability Zones.
-- **Security Groups** separate ALB, web-server, SSH and database access.
-- **Terraform** manages the infrastructure declaratively.
+The project contains:
 
-> This is an educational portfolio project. The two RDS resources are independent database instances, not an RDS Multi-AZ primary/standby deployment.
+- **Application Load Balancer (ALB)** to distribute HTTP traffic between the web servers.
+- **Two EC2 instances** running Apache, deployed across separate Availability Zones.
+- **Two Amazon RDS for MySQL instances**, also placed in separate Availability Zones.
+- **Security Groups** controlling HTTP, SSH and MySQL connectivity.
+- **Terraform** to provision the AWS resources as code.
+
+> The two RDS resources are independent database instances. They are not an RDS Multi-AZ primary/standby deployment.
 
 ## Technologies
 
-Terraform · AWS · EC2 · Application Load Balancer · RDS · MySQL · Linux
+**Terraform · AWS · EC2 · Application Load Balancer · RDS · MySQL · Linux**
 
-## Security and maintainability
+## Project history
 
-The original academic project was modernized for portfolio use:
+This project was originally developed and deployed in **2023** as part of my Computer Engineering coursework at Insper.
 
-- AWS credentials are not Terraform variables; authentication uses the standard AWS credential chain.
-- SSH is restricted with the ssh_allowed_cidr variable and rejects 0.0.0.0/0.
-- The ALB and EC2 instances use separate security groups.
-- MySQL is reachable only from the EC2 security group.
-- RDS is private and storage encryption is enabled.
-- The database password is a sensitive Terraform input.
-- The EC2 AMI is discovered dynamically rather than hardcoded.
-- Terraform and AWS provider versions are declared.
+The screenshots included in this repository document the infrastructure running at the time, including the two web servers behind the load balancer and access to the database.
 
-## Prerequisites
+The Terraform source code has intentionally been preserved as the **original 2023 implementation**. The AWS environment and credentials used for the academic project are no longer available, so the infrastructure has not been redeployed or revalidated against AWS since then.
 
-- Terraform >= 1.5
-- AWS CLI configured for your own AWS account
-- An SSH public key
-- Permission to create the AWS resources used by this project
+## Original results
 
-Do not commit AWS credentials, database passwords or private SSH keys.
+The Application Load Balancer distributed requests between the two EC2 web servers:
 
-## Usage
+![Web server 1](imagens/web_1.png)
 
-Clone and initialize:
+![Web server 2](imagens/web_2.png)
 
-    git clone https://github.com/keiyanishio/Projeto_Cloud.git
-    cd Projeto_Cloud
-    terraform init
+The EC2 instances could connect to the MySQL RDS instances:
 
-Create a local terraform.tfvars file containing ssh_public_key, ssh_allowed_cidr, db_username and db_password. Keep that file out of Git.
+![RDS](imagens/rds.png)
 
-Then:
+## Repository structure
 
-    terraform fmt -check
-    terraform validate
-    terraform plan
-    terraform apply
+- `alb.tf` — Application Load Balancer, listener and target group
+- `az.tf` — Availability Zones and default subnets
+- `instance.tf` — EC2 web servers and bootstrap scripts
+- `key_pairs.tf` — SSH public key configuration
+- `output.tf` — Terraform outputs
+- `providers.tf` — AWS provider configuration
+- `rds1.tf` / `rds2.tf` — MySQL RDS instances
+- `securitygroup.tf` — network access rules
+- `subnetsgroup.tf` — RDS subnet groups
+- `variable.tf` — Terraform input variables
 
-Terraform outputs the load balancer DNS, EC2 public IPs and RDS endpoints.
+## What I would improve today
 
-When finished:
+If I were rebuilding this architecture today, I would keep the original learning goals but update several implementation choices:
 
-    terraform destroy
+- Use the standard AWS credential chain instead of passing AWS access keys as Terraform variables.
+- Restrict SSH access rather than allowing port 22 from `0.0.0.0/0`, or use AWS Systems Manager instead of SSH.
+- Use separate Security Groups for the ALB and EC2 instances.
+- Use a dedicated VPC with public/private subnet design rather than relying on the default VPC.
+- Keep database instances private and use a secrets-management solution for credentials.
+- Use a dynamically selected/current AMI instead of a hardcoded AMI ID.
+- Pin compatible Terraform and AWS provider versions.
+- Consider HTTPS, monitoring, autoscaling and a true RDS Multi-AZ configuration for a production-oriented architecture.
 
-This avoids leaving chargeable AWS resources running.
+These items are documented as **future improvements only**; they are not presented as features implemented in the original 2023 project.
 
-## Project structure
+## Note
 
-- alb.tf — Application Load Balancer and target group
-- az.tf — Availability Zones and default subnets
-- instance.tf — EC2 web servers
-- key_pairs.tf — SSH public key
-- output.tf — Terraform outputs
-- providers.tf — Terraform and AWS provider configuration
-- rds1.tf / rds2.tf — MySQL RDS instances
-- securitygroup.tf — ALB, EC2 and database security groups
-- subnetsgroup.tf — RDS subnet group
-- variable.tf — input variables
-
-## Next improvements
-
-For a production-oriented evolution of this architecture: dedicated VPC and private subnets, HTTPS with ACM, AWS Systems Manager instead of SSH, Secrets Manager, autoscaling, monitoring and a true RDS Multi-AZ deployment.
+This repository is preserved primarily as a record of an early cloud-infrastructure project and of my hands-on introduction to Terraform and AWS.
